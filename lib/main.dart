@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:math';
-import 'dart:ui';
-
+import 'package:bible_verse_widget/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -9,9 +9,12 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:workmanager/workmanager.dart';
 import 'features/promise_box/presentation/bloc/promise_bloc.dart';
+import 'features/promise_box_online/presentation/bloc/promise_online_bloc.dart';
+import 'features/promise_box_group/presentation/bloc/promise_group_bloc.dart';
 import 'features/promise_box/presentation/pages/promise_box_page.dart';
 import 'features/promise_box/data/models/bible_verse_model.dart';
 import 'injection_container.dart' as di;
+import 'firebase_options.dart';
 
 @pragma('vm:entry-point')
 Future<void> updateWidgetVerse() async {
@@ -51,19 +54,40 @@ Future<void> backgroundCallback(Uri? uri) async {
 }
 
 void main() async {
+  // 1. Initialize Widgets Binding FIRST
   WidgetsFlutterBinding.ensureInitialized();
+
+  // 2. Initialize Firebase SECOND
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    debugPrint('Firebase initialized successfully');
+  } catch (e) {
+    debugPrint('Firebase initialization failed: $e');
+  }
+
+  // 3. Initialize Dependency Injection
   await di.init();
   
-  // Register Workmanager for periodic daily updates
-  await Workmanager().initialize(callbackDispatcher, isInDebugMode: false);
-  await Workmanager().registerPeriodicTask(
-    "daily_verse_update",
-    "update_widget_task",
-    frequency: const Duration(hours: 24),
-  );
+  // 4. Initialize Background Tasks
+  try {
+    await Workmanager().initialize(callbackDispatcher, isInDebugMode: false);
+    await Workmanager().registerPeriodicTask(
+      "daily_verse_update",
+      "update_widget_task",
+      frequency: const Duration(hours: 24),
+    );
+  } catch (e) {
+    debugPrint('Workmanager error: $e');
+  }
 
-  // Register background callback for widget taps
-  HomeWidget.registerBackgroundCallback(backgroundCallback);
+  // 5. Register Widget Interactivity
+  try {
+    HomeWidget.registerInteractivityCallback(backgroundCallback);
+  } catch (e) {
+    debugPrint('HomeWidget error: $e');
+  }
 
   runApp(const PromiseBoxApp());
 }
@@ -73,20 +97,26 @@ class PromiseBoxApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Promise Box',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.amber,
-          brightness: Brightness.light,
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(create: (_) => di.sl<AuthBloc>()),
+
+        BlocProvider(create: (_) => di.sl<PromiseBloc>()..add(LoadVersesEvent())),
+        BlocProvider(create: (_) => di.sl<PromiseOnlineBloc>()),
+        BlocProvider(create: (_) => di.sl<PromiseGroupBloc>()),
+      ],
+      child: MaterialApp(
+        title: 'Promise Box',
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(
+          useMaterial3: true,
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: Colors.amber,
+            brightness: Brightness.light,
+          ),
+          textTheme: GoogleFonts.poppinsTextTheme(),
         ),
-        textTheme: GoogleFonts.poppinsTextTheme(),
-      ),
-      home: BlocProvider(
-        create: (_) => di.sl<PromiseBloc>()..add(LoadVersesEvent()),
-        child: const PromiseBoxPage(),
+        home: const PromiseBoxPage(),
       ),
     );
   }

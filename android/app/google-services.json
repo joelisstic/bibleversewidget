@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "387310511718",
+    "project_id": "bible-verse-app-c865d",
+    "storage_bucket": "bible-verse-app-c865d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:387310511718:android:a44f55b816cdac173dafa7",
+        "android_client_info": {
+          "package_name": "com.joelisstic.bibleverseapp.bible_verse_widget"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "387310511718-7ffk8n32rmt2s1rvo7b9afk7cpl2rogm.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.joelisstic.bibleverseapp.bible_verse_widget",
+            "certificate_hash": "990bd11c26794bc4427003f84cf280545c328824"
+          }
+        },
+        {
+          "client_id": "387310511718-j8trremk8hlt8ai9auvaer2ha5dcnp4r.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCmgLRhvZ1Gl0X_V6ify_m1nwwQk3YZplA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "387310511718-j8trremk8hlt8ai9auvaer2ha5dcnp4r.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "387310511718-phb8nvml9fmkkbj7dra42j361ghpgl6o.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.joelisstic.bibleverseapp.bibleVerseWidget"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
