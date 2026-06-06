@@ -85,7 +85,7 @@ class _PromiseOnlinePageState extends State<PromiseOnlinePage> with SingleTicker
                       verse: state.currentVerse!.verse,
                       sentence: state.currentVerse!.sentence,
                     ),
-                    onRefresh: _generateNewVerse,
+                    onRefresh: _generateNewVerse, onAddToHome: () {  },
                                         )
 
                   ),

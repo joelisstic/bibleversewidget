@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:math';
+import 'package:bible_verse_widget/common/services/notification_service.dart';
 import 'package:bible_verse_widget/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
@@ -13,8 +14,13 @@ import 'features/promise_box_online/presentation/bloc/promise_online_bloc.dart';
 import 'features/promise_box_group/presentation/bloc/promise_group_bloc.dart';
 import 'features/promise_box/presentation/pages/promise_box_page.dart';
 import 'features/promise_box/data/models/bible_verse_model.dart';
+import 'firebase_services.dart';
 import 'injection_container.dart' as di;
 import 'firebase_options.dart';
+
+const String bibleUploadTask = "bible_upload_task";
+const String updateWidgetTask = "update_widget_task";
+const String mannaStreakCheckTask = "manna_streak_check";
 
 @pragma('vm:entry-point')
 Future<void> updateWidgetVerse() async {
@@ -32,6 +38,7 @@ Future<void> updateWidgetVerse() async {
         name: 'BibleVerseWidgetProvider',
         androidName: 'BibleVerseWidgetProvider',
       );
+      debugPrint('Widget updated with new verse: ${randomVerse.reference}');
     }
   } catch (e) {
     debugPrint('Widget update error: $e');
@@ -41,7 +48,23 @@ Future<void> updateWidgetVerse() async {
 @pragma('vm:entry-point')
 void callbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
-    await updateWidgetVerse();
+    try {
+      if (Firebase.apps.isEmpty) {
+        await Firebase.initializeApp(
+          options: DefaultFirebaseOptions.currentPlatform,
+        );
+      }
+    } catch (e) {
+      debugPrint('Background Firebase init error: $e');
+    }
+
+    if (task == bibleUploadTask) {
+      await uploadBibleToFirestore();
+    } else if (task == mannaStreakCheckTask) {
+      await NotificationService.checkStreaksAndNotify();
+    } else {
+      await updateWidgetVerse();
+    }
     return Future.value(true);
   });
 }
@@ -54,39 +77,55 @@ Future<void> backgroundCallback(Uri? uri) async {
 }
 
 void main() async {
-  // 1. Initialize Widgets Binding FIRST
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 2. Initialize Firebase SECOND
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-    debugPrint('Firebase initialized successfully');
+    await NotificationService.initialize();
+    debugPrint('Firebase & Notifications initialized successfully');
   } catch (e) {
     debugPrint('Firebase initialization failed: $e');
   }
 
-  // 3. Initialize Dependency Injection
   await di.init();
   
-  // 4. Initialize Background Tasks
   try {
     await Workmanager().initialize(callbackDispatcher, isInDebugMode: false);
+    
     await Workmanager().registerPeriodicTask(
       "daily_verse_update",
-      "update_widget_task",
+      updateWidgetTask,
       frequency: const Duration(hours: 24),
+      constraints: Constraints(networkType: NetworkType.connected),
+    );
+
+    // Monitor streaks in background
+    await Workmanager().registerPeriodicTask(
+      "streak_monitoring_task",
+      mannaStreakCheckTask,
+      frequency: const Duration(minutes: 15),
+      constraints: Constraints(networkType: NetworkType.connected),
+    );
+
+    await Workmanager().registerOneOffTask(
+      "initial_bible_upload_task",
+      bibleUploadTask,
+      initialDelay: const Duration(seconds: 10),
+      constraints: Constraints(
+        networkType: NetworkType.connected,
+        requiresBatteryNotLow: true,
+      ),
     );
   } catch (e) {
-    debugPrint('Workmanager error: $e');
+    debugPrint('Workmanager registration error: $e');
   }
 
-  // 5. Register Widget Interactivity
   try {
     HomeWidget.registerInteractivityCallback(backgroundCallback);
   } catch (e) {
-    debugPrint('HomeWidget error: $e');
+    debugPrint('HomeWidget interactivity error: $e');
   }
 
   runApp(const PromiseBoxApp());
@@ -99,8 +138,7 @@ class PromiseBoxApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiBlocProvider(
       providers: [
-        BlocProvider(create: (_) => di.sl<AuthBloc>()),
-
+        BlocProvider(create: (_) => di.sl<AuthBloc>()..add(AuthCheckRequested())),
         BlocProvider(create: (_) => di.sl<PromiseBloc>()..add(LoadVersesEvent())),
         BlocProvider(create: (_) => di.sl<PromiseOnlineBloc>()),
         BlocProvider(create: (_) => di.sl<PromiseGroupBloc>()),

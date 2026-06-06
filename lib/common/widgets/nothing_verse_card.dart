@@ -7,8 +7,14 @@ import '3_d_animation.dart';
 class NothingVerseCard extends StatelessWidget {
   final BibleVerse verse;
   final VoidCallback onRefresh;
+  final VoidCallback onAddToHome;
 
-  const NothingVerseCard({super.key, required this.verse, required this.onRefresh});
+  const NothingVerseCard({
+    super.key,
+    required this.verse,
+    required this.onRefresh,
+    required this.onAddToHome,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -41,7 +47,6 @@ class NothingVerseCard extends StatelessWidget {
                 ),
                 Padding(
                   padding: const EdgeInsets.all(32),
-                  // AnimatedSwitcher removed to allow ThreeDSpinWrapper to handle the visual change
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -70,8 +75,6 @@ class NothingVerseCard extends StatelessWidget {
       ),
     );
   }
-// ... _buildHeader and _buildFooter stay the same
-
 
   Widget _buildHeader(BuildContext context) {
     return Row(
@@ -86,7 +89,7 @@ class NothingVerseCard extends StatelessWidget {
         ),
         const SizedBox(width: 12),
         Text(
-          'LOVE',
+          'PROMISE',
           style: GoogleFonts.ibmPlexMono(
             color: Colors.white,
             fontSize: 12,
@@ -149,7 +152,7 @@ class NothingVerseCard extends StatelessWidget {
         GestureDetector(
           onTap: () {
             HapticFeedback.mediumImpact();
-            onRefresh();
+            onAddToHome();
           },
           child: Container(
             padding: const EdgeInsets.all(14),
@@ -158,7 +161,7 @@ class NothingVerseCard extends StatelessWidget {
               shape: BoxShape.circle,
               border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
             ),
-            child: const Icon(Icons.refresh_rounded, color: Colors.white, size: 22),
+            child: const Icon(Icons.add_rounded, color: Colors.white, size: 22),
           ),
         ),
       ],

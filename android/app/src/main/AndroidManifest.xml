@@ -26,10 +26,15 @@
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.joelisstic.bible_verse.UPDATE_ACTION" />
             </intent-filter>
             <meta-data android:name="android.appwidget.provider"
                 android:resource="@xml/bible_verse_widget_info" />
         </receiver>
+
+        <!-- The Service that provides items to the StackView -->
+        <service android:name=".BibleVerseStackService"
+            android:permission="android.permission.BIND_REMOTEVIEWS" />
 
         <meta-data
             android:name="flutterEmbedding"

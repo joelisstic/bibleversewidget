@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
@@ -82,14 +83,19 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
   Future<void> _syncUserToFirestore(User user) async {
     try {
+      // Fetch FCM Token to update user DB
+      String? fcmToken = await FirebaseMessaging.instance.getToken();
+      
       await _firestore.collection('users').doc(user.uid).set({
         'uid': user.uid,
         'email': user.email,
         'displayName': user.displayName,
         'photoURL': user.photoURL,
+        'fcm_token': fcmToken,
         'lastSeen': FieldValue.serverTimestamp(),
+        'last_active_at': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
-      debugPrint('User synced to Firestore: ${user.uid}');
+      debugPrint('User and FCM token synced to Firestore: ${user.uid}');
     } catch (e) {
       debugPrint('Error syncing user to Firestore: $e');
     }

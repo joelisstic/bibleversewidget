@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:home_widget/home_widget.dart';
 import '../../../../common/widgets/nothing_verse_card.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../promise_box_group/presentation/bloc/promise_group_bloc.dart';
 import '../../../promise_box_group/presentation/pages/promise_group_page.dart';
 import '../bloc/promise_bloc.dart';
+import '../../domain/entities/bible_verse.dart';
+// import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 class PromiseBoxPage extends StatefulWidget {
   const PromiseBoxPage({super.key});
@@ -18,7 +21,7 @@ class _PromiseBoxPageState extends State<PromiseBoxPage> with TickerProviderStat
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
-  int _selectedTab = 0; // 0: Offline, 1: Group
+  int _selectedTab = 0;
 
   @override
   void initState() {
@@ -54,21 +57,81 @@ class _PromiseBoxPageState extends State<PromiseBoxPage> with TickerProviderStat
     _controller.forward();
   }
 
+  Future<void> _addToHome(BibleVerse verse) async {
+    try {
+      await HomeWidget.saveWidgetData<String>('widget_quote', verse.sentence);
+      await HomeWidget.saveWidgetData<String>('widget_reference', verse.reference);
+      await HomeWidget.updateWidget(
+        name: 'BibleVerseWidgetProvider',
+        androidName: 'BibleVerseWidgetProvider',
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Saved to Home Screen', style: GoogleFonts.ibmPlexMono()),
+            backgroundColor: const Color(0xFF333333),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error saving to home widget: $e');
+    }
+  }
+
+  // Local test function
+  // void _triggerTestNotification() async {
+  //   final FlutterLocalNotificationsPlugin localNotif = FlutterLocalNotificationsPlugin();
+  //   const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+  //     'test_channel', 'Test Channel', importance: Importance.max, priority: Priority.high);
+  //   const NotificationDetails details = NotificationDetails(android: androidDetails);
+  //
+  //   await localNotif.show( title: 'MANNA TEST', body: 'This is a test of your notification system.',notificationDetails:  details, id: 0);
+  // }
+
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, authState) {
         if (authState is Authenticated) {
           return _buildMainContent();
-        } else if (authState is AuthLoading) {
-          return const Scaffold(
-            backgroundColor: Colors.black,
-            body: Center(child: CircularProgressIndicator(color: Colors.white)),
-          );
+        } else if (authState is AuthLoading || authState is AuthInitial) {
+          return _buildLoadingSplash();
         } else {
           return _buildSignInUI();
         }
       },
+    );
+  }
+
+  Widget _buildLoadingSplash() {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AnimatedBuilder(
+              animation: _controller,
+              builder: (context, child) {
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: List.generate(3, (index) {
+                    final opacity = ((_controller.value * 3 - index) % 3).clamp(0.1, 1.0);
+                    return Container(
+                      width: 6, height: 6, margin: const EdgeInsets.symmetric(horizontal: 4),
+                      decoration: BoxDecoration(color: Colors.white.withValues(alpha: opacity), shape: BoxShape.rectangle),
+                    );
+                  }),
+                );
+              },
+            ),
+            const SizedBox(height: 24),
+            Text('INITIALIZING SYSTEM...', style: GoogleFonts.ibmPlexMono(color: Colors.white24, fontSize: 10, letterSpacing: 2)),
+          ],
+        ),
+      ),
     );
   }
 
@@ -79,36 +142,19 @@ class _PromiseBoxPageState extends State<PromiseBoxPage> with TickerProviderStat
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(
-              'PROMISE BOX',
-              style: GoogleFonts.ibmPlexMono(
-                color: Colors.white,
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 4,
-              ),
-            ),
+            Text('PROMISE BOX', style: GoogleFonts.ibmPlexMono(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 4)),
             const SizedBox(height: 48),
             GestureDetector(
               onTap: () => context.read<AuthBloc>().add(SignInRequested()),
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 18),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(100),
-                ),
+                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(100)),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const Icon(Icons.login, color: Colors.black),
                     const SizedBox(width: 12),
-                    Text(
-                      'SIGN IN WITH GOOGLE',
-                      style: GoogleFonts.ibmPlexMono(
-                        color: Colors.black,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    Text('SIGN IN WITH GOOGLE', style: GoogleFonts.ibmPlexMono(color: Colors.black, fontWeight: FontWeight.bold)),
                   ],
                 ),
               ),
@@ -127,10 +173,7 @@ class _PromiseBoxPageState extends State<PromiseBoxPage> with TickerProviderStat
           Positioned.fill(
             child: Opacity(
               opacity: 0.03,
-              child: Image.network(
-                'https://www.transparenttextures.com/patterns/stardust.png',
-                repeat: ImageRepeat.repeat,
-              ),
+              child: Image.network('https://www.transparenttextures.com/patterns/stardust.png', repeat: ImageRepeat.repeat),
             ),
           ),
           SafeArea(
@@ -194,6 +237,7 @@ class _PromiseBoxPageState extends State<PromiseBoxPage> with TickerProviderStat
                   child: NothingVerseCard(
                     verse: state.currentVerse!,
                     onRefresh: _generateNewVerse,
+                    onAddToHome: () => _addToHome(state.currentVerse!),
                   ),
                 ),
               ),
@@ -209,33 +253,31 @@ class _PromiseBoxPageState extends State<PromiseBoxPage> with TickerProviderStat
   Widget _buildTabBarRow() {
     return Row(
       children: [
-        Container(
-          padding: const EdgeInsets.all(4),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.05),
-            borderRadius: BorderRadius.circular(100),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildTabItem(0, 'OFFLINE'),
-              _buildTabItem(1, 'GROUP'),
-            ],
+        Padding(
+          padding: const EdgeInsets.only(left: 24.0),
+          child: Container(
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.05), borderRadius: BorderRadius.circular(100)),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [_buildTabItem(0, 'OFFLINE'), _buildTabItem(1, 'GROUP')],
+            ),
           ),
         ),
+        const Spacer(),
         if (_selectedTab == 1) ...[
-          const SizedBox(width: 12),
-          _buildGroupTriggerButton(),
+          _buildGroupOverlayTrigger(),
+          const SizedBox(width: 24),
         ],
       ],
     );
   }
 
-  Widget _buildGroupTriggerButton() {
+  Widget _buildGroupOverlayTrigger() {
     return BlocBuilder<PromiseGroupBloc, PromiseGroupState>(
       builder: (context, state) {
         if (state is PromiseGroupOverview) {
-          Widget iconContent;
+          Widget triggerContent;
           if (state.activeGroupId != null) {
             final group = state.groups.firstWhere((g) => g.id == state.activeGroupId);
             final members = group['members'] as List? ?? [];
@@ -247,24 +289,17 @@ class _PromiseBoxPageState extends State<PromiseBoxPage> with TickerProviderStat
             } else if (members.isNotEmpty) {
               groupInitials = members[0].toString()[0].toUpperCase();
             }
-            iconContent = Text(
-              groupInitials,
-              style: GoogleFonts.ibmPlexMono(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 12),
-            );
+            triggerContent = Text(groupInitials, style: GoogleFonts.ibmPlexMono(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 12));
           } else {
-            iconContent = const Icon(Icons.person_add_alt_1_outlined, color: Colors.black, size: 20);
+            triggerContent = const Icon(Icons.person_add_alt_1_outlined, color: Colors.black, size: 20);
           }
 
           return GestureDetector(
             onTap: () => PromiseGroupPage.showSidebarOverlay(context, state),
             child: Container(
-              width: 44,
-              height: 44,
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-              ),
-              child: Center(child: iconContent),
+              width: 44, height: 44,
+              decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+              child: Center(child: triggerContent),
             ),
           );
         }
@@ -282,19 +317,8 @@ class _PromiseBoxPageState extends State<PromiseBoxPage> with TickerProviderStat
       },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-        decoration: BoxDecoration(
-          color: isSelected ? Colors.white : Colors.transparent,
-          borderRadius: BorderRadius.circular(100),
-        ),
-        child: Text(
-          label,
-          style: GoogleFonts.ibmPlexMono(
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-            color: isSelected ? Colors.black : Colors.white.withValues(alpha: 0.4),
-            letterSpacing: 1,
-          ),
-        ),
+        decoration: BoxDecoration(color: isSelected ? Colors.white : Colors.transparent, borderRadius: BorderRadius.circular(100)),
+        child: Text(label, style: GoogleFonts.ibmPlexMono(fontSize: 12, fontWeight: FontWeight.bold, color: isSelected ? Colors.black : Colors.white.withValues(alpha: 0.4), letterSpacing: 1)),
       ),
     );
   }
@@ -306,30 +330,24 @@ class _PromiseBoxPageState extends State<PromiseBoxPage> with TickerProviderStat
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              'PROMISE',
-              style: GoogleFonts.ibmPlexMono(
-                fontSize: 14,
-                color: Colors.white.withValues(alpha: 0.5),
-                letterSpacing: 4,
-              ),
-            ),
-            GestureDetector(
-              onTap: () => context.read<AuthBloc>().add(SignOutRequested()),
-              child: const Icon(Icons.logout, color: Colors.white, size: 18),
+            Text('PROMISE', style: GoogleFonts.ibmPlexMono(fontSize: 14, color: Colors.white.withValues(alpha: 0.5), letterSpacing: 4)),
+            Row(
+              children: [
+                GestureDetector(
+                  // onTap: _triggerTestNotification,
+                  child: const Icon(Icons.notifications_active_outlined, color: Colors.white, size: 18),
+                ),
+                const SizedBox(width: 20),
+                GestureDetector(
+                  onTap: () => context.read<AuthBloc>().add(SignOutRequested()),
+                  child: const Icon(Icons.logout, color: Colors.white, size: 18),
+                ),
+              ],
             ),
           ],
         ),
         const SizedBox(height: 8),
-        Text(
-          'Daily Manna',
-          style: GoogleFonts.inter(
-            fontSize: 42,
-            fontWeight: FontWeight.w900,
-            color: Colors.white,
-            letterSpacing: -1,
-          ),
-        ),
+        Text('Daily Manna', style: GoogleFonts.inter(fontSize: 42, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: -1)),
       ],
     );
   }
@@ -341,20 +359,11 @@ class _PromiseBoxPageState extends State<PromiseBoxPage> with TickerProviderStat
         children: [
           Container(
             padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-            ),
+            decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.white.withValues(alpha: 0.1))),
             child: const Icon(Icons.auto_awesome, color: Colors.white, size: 40),
           ),
           const SizedBox(height: 24),
-          Text(
-            'Your daily promise is ready.',
-            style: GoogleFonts.inter(
-              color: Colors.white.withValues(alpha: 0.7),
-              fontSize: 16,
-            ),
-          ),
+          Text('Your daily promise is ready.', style: GoogleFonts.inter(color: Colors.white.withValues(alpha: 0.7), fontSize: 16)),
         ],
       ),
     );
@@ -366,18 +375,8 @@ class _PromiseBoxPageState extends State<PromiseBoxPage> with TickerProviderStat
         onTap: _generateNewVerse,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 18),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(100),
-          ),
-          child: Text(
-            'REVEAL PROMISE',
-            style: GoogleFonts.ibmPlexMono(
-              color: Colors.black,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1,
-            ),
-          ),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(100)),
+          child: Text('REVEAL PROMISE', style: GoogleFonts.ibmPlexMono(color: Colors.black, fontWeight: FontWeight.bold, letterSpacing: 1)),
         ),
       ),
     );
